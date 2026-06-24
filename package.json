@@ -1,0 +1,46 @@
+{
+  "name": "beijing-hustle",
+  "version": "1.0.0",
+  "description": "A desktop survival sim about making a living in Beijing.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "web:build": "node scripts/build-web.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "game",
+    "phaser",
+    "electron"
+  ],
+  "author": "OpenAI Codex",
+  "license": "MIT",
+  "build": {
+    "appId": "com.codex.beijinghustle",
+    "productName": "北漂浮生",
+    "directories": {
+      "output": "outputs/build"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "index.html",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.games"
+    }
+  },
+  "dependencies": {
+    "phaser": "^4.0.0"
+  },
+  "devDependencies": {
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3"
+  }
+}
