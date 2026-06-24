@@ -1227,7 +1227,7 @@ ROOT.innerHTML = `
       <section class="panel">
         <h2>行情与背包</h2>
         <div class="panel-scroll">
-          <div class="sub">倒腾小货能赚快钱，大件和股票会更猛，但也会把你的现金和心态一起锁进去。</div>
+          <div class="sub">每天价格只刷新一次。普通资产当天买卖价固定；股票和金融产品会把你今天的净加减仓，延迟反映到明天的开盘。</div>
           <div class="market-list" id="market"></div>
           <div class="sub" style="margin-top: 4px;">持有物品</div>
           <div class="inventory-list" id="inventory"></div>
@@ -1321,6 +1321,7 @@ function buildInitialState() {
     },
     inventory: Object.fromEntries(GOODS.map((good) => [good.id, 0])),
     inventoryCost: Object.fromEntries(GOODS.map((good) => [good.id, 0])),
+    marketPressure: Object.fromEntries(GOODS.map((good) => [good.id, 0])),
     prices: {},
     jobsToday: [],
     log: [],
@@ -1426,37 +1427,17 @@ function getMaxActions() {
   return clamp(total, 2, 5);
 }
 
-function nudgeQuoteAfterTrade(goodId, mode) {
+function registerTradePressure(goodId, mode) {
   const good = getGood(goodId);
-  const quote = state.prices[goodId];
-  if (!good || !quote) return;
+  if (!good) return;
 
-  const cap = getPriceCap(good);
-  const floor = getPriceFloor(good);
-  const volatilityScale = ["股票", "金融"].includes(good.category) ? 2.35 : ["大件", "房产"].includes(good.category) ? 1.05 : 0.8;
-  const minJump = Math.max(1, Math.floor(good.volatility * (volatilityScale * 0.35)));
-  const maxJump = Math.max(minJump + 1, Math.floor(good.volatility * volatilityScale));
-  const directional = mode === "buy" ? randInt(minJump, maxJump) : -randInt(minJump, maxJump);
-  const noise = randInt(-Math.max(1, Math.floor(minJump / 2)), Math.max(1, Math.floor(minJump / 2)));
-  const newMid = clamp(quote.mid + directional + noise, floor, cap);
-  const [minSpread, maxSpread] = getSpreadRange(good);
-  const spread = randInt(minSpread, maxSpread);
-  const nextBuy = clamp(newMid + spread + randInt(0, Math.max(1, Math.floor(spread / 2))), floor, cap);
-  const rawSell = newMid - randInt(Math.max(1, Math.floor(spread / 2)), spread);
-  const previousSell = quote.sell;
-  let nextSell = clamp(Math.min(rawSell, nextBuy - 1), floor, cap);
-
-  if (nextSell === previousSell) {
-    const forcedStep = mode === "buy" ? minJump : -minJump;
-    nextSell = clamp(Math.min(previousSell + forcedStep, nextBuy - 1), floor, cap);
+  if (!["股票", "金融"].includes(good.category)) {
+    return;
   }
 
-  state.prices[goodId] = {
-    mid: newMid,
-    buy: nextBuy,
-    sell: nextSell,
-    change: newMid - quote.mid,
-  };
+  const pressureUnit = Math.max(1, Math.floor(good.volatility * 0.18));
+  const direction = mode === "buy" ? 1 : -1;
+  state.marketPressure[goodId] = (state.marketPressure[goodId] || 0) + direction * pressureUnit;
 }
 
 function money(value) {
@@ -1483,13 +1464,14 @@ function recalcDailyOffers() {
       const previousMid = state.prices?.[good.id]?.mid ?? good.base;
       const isFinance = ["股票", "金融"].includes(good.category);
       const isMajorAsset = ["大件", "房产"].includes(good.category);
+      const pressure = state.marketPressure?.[good.id] || 0;
       const momentum = Math.round((previousMid - good.base) * (isFinance ? 0.34 : 0.1));
       const drift = isFinance ? randInt(-good.volatility * 3, good.volatility * 3) : randInt(-good.volatility, good.volatility);
       const scarcity = isFinance ? randInt(-good.volatility * 2, good.volatility * 2) : isMajorAsset ? randInt(-80, 90) : randInt(-6, 10);
       const skillAdjust = state.tradeSkill >= 2 ? -2 : 0;
       const floor = getPriceFloor(good);
       const cap = getPriceCap(good);
-      const mid = clamp(good.base + districtShift + drift + scarcity + momentum + skillAdjust, floor, cap);
+      const mid = clamp(good.base + districtShift + drift + scarcity + momentum + pressure + skillAdjust, floor, cap);
       const [minSpread, maxSpread] = getSpreadRange(good);
       const spread = randInt(minSpread, maxSpread);
       const buy = clamp(mid + spread + randInt(0, Math.max(1, Math.floor(spread / 2))), floor, cap);
@@ -1507,6 +1489,7 @@ function recalcDailyOffers() {
       ];
     }),
   );
+  state.marketPressure = Object.fromEntries(GOODS.map((good) => [good.id, 0]));
 
   state.jobsToday = JOBS
     .filter((job) => state.reputation >= job.minRep)
@@ -1769,11 +1752,12 @@ function renderMarket() {
         const unlocked = canTradeGood(good);
         const changeText = quote.change === 0 ? "平" : `${quote.change > 0 ? "+" : ""}${money(quote.change)}`;
         const spreadText = money(buyPrice - sellPrice);
+        const ruleText = ["股票", "金融"].includes(good.category) ? "今日交易影响明天开盘" : "今日价格固定";
         return `
           <div class="line">
             <div>
               <div class="name">${good.name}</div>
-              <div class="detail">${unlocked ? `中间价 ${money(quote.mid)} | 买入 ${money(buyPrice)} / 卖出 ${money(sellPrice)} | 点差 ${spreadText} | 日波动 ${changeText}` : good.requirementText}</div>
+              <div class="detail">${unlocked ? `中间价 ${money(quote.mid)} | 买入 ${money(buyPrice)} / 卖出 ${money(sellPrice)} | 点差 ${spreadText} | 日波动 ${changeText} | ${ruleText}` : good.requirementText}</div>
             </div>
             <div class="cta">
               <button class="ghost" data-buy="${good.id}" ${(state.gameOver || !unlocked) ? "disabled" : ""}>买 1</button>
@@ -2054,7 +2038,7 @@ function trade(goodId, mode) {
     state.mood += 1;
     state.tradeVolume += 1;
     logEntry(`你以 ${money(buyPrice)} 买入 1 件${good.name}。`);
-    nudgeQuoteAfterTrade(goodId, "buy");
+    registerTradePressure(goodId, "buy");
   } else {
     if (state.inventory[goodId] <= 0) {
       logEntry(`你想卖 ${good.name}，但背包里已经空了。`);
@@ -2069,7 +2053,7 @@ function trade(goodId, mode) {
     state.tradeVolume += 1;
     const realized = sellPrice - avgCost;
     logEntry(`你以 ${money(sellPrice)} 卖出 1 件${good.name}，本次${realized >= 0 ? "赚" : "亏"}了 ${money(realized)}。`);
-    nudgeQuoteAfterTrade(goodId, "sell");
+    registerTradePressure(goodId, "sell");
   }
   if (state.tradeVolume >= 8 && !state.storyFlags.supplierReady && !state.storyFlags.supplierContract) {
     state.storyFlags.supplierReady = true;
@@ -2296,6 +2280,10 @@ function loadGame() {
     inventoryCost: {
       ...initial.inventoryCost,
       ...(parsed.inventoryCost || {}),
+    },
+    marketPressure: {
+      ...initial.marketPressure,
+      ...(parsed.marketPressure || {}),
     },
     pendingEvent: null,
   };
