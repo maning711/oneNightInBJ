@@ -802,6 +802,7 @@ const EVENTS = [
 ];
 
 const ROOT = document.getElementById("game-root");
+const BOOT_SCREEN = document.getElementById("boot-screen");
 
 const style = document.createElement("style");
 style.textContent = `
@@ -2318,6 +2319,10 @@ function resetGame() {
   state.actionsLeft = getMaxActions();
   logEntry("你拖着箱子抵达北京，银行卡里有 2200，心里还剩一点不愿认输。");
   render();
+  if (BOOT_SCREEN) {
+    BOOT_SCREEN.classList.add("hidden");
+    window.setTimeout(() => BOOT_SCREEN.remove(), 320);
+  }
 }
 
 els.nextDay.addEventListener("click", endDay);

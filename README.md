@@ -45,3 +45,22 @@ GitHub Pages 发布方式：
 ```text
 https://<你的 GitHub 用户名>.github.io/<仓库名>/
 ```
+
+当前仓库示例地址：
+
+```text
+https://maning711.github.io/oneNightInBJ/
+```
+
+## 后续更新网页版本
+
+每次你改完游戏内容后，执行：
+
+```bash
+npm run web:build
+git add .
+git commit -m "Update web build"
+git push
+```
+
+GitHub Pages 会自动从 `main` 分支的 `docs/` 目录重新发布。
