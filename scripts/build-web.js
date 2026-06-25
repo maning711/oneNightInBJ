@@ -24,6 +24,7 @@ function copyDir(src, dest) {
 
 cleanDir(outDir);
 fs.copyFileSync(path.join(root, "index.html"), path.join(outDir, "index.html"));
+fs.copyFileSync(path.join(root, "homm-lite.html"), path.join(outDir, "homm-lite.html"));
 copyDir(path.join(root, "src"), path.join(outDir, "src"));
 fs.writeFileSync(path.join(outDir, ".nojekyll"), "");
 

@@ -52,6 +52,12 @@ https://<你的 GitHub 用户名>.github.io/<仓库名>/
 https://maning711.github.io/oneNightInBJ/
 ```
 
+类英雄无敌原型页：
+
+```text
+https://maning711.github.io/oneNightInBJ/homm-lite.html
+```
+
 ## 后续更新网页版本
 
 每次你改完游戏内容后，执行：
